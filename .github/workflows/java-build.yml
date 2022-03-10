@@ -1,0 +1,66 @@
+name: "JavaGradleBuild"
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        description: "Java Version"
+        type: string
+        required: true
+      gradle-version:
+        description: "Gradle Version"
+        type: string
+        required: true
+      os-version:
+        description: "OS Version"
+        type: string
+        default: ubuntu-latest
+        required: false
+    secrets:
+      github-username:
+        description: "GitHub Username"
+        required: true
+      github-pat:
+        description: "GitHub Packages Token"
+        required: true
+
+jobs:
+  build:
+    runs-on: ${{ inputs.os-version }}
+    name: Java Compile
+    steps:
+      - uses: actions/checkout@v2
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ inputs.java-version }}
+
+      #Build Gradle
+      - name: Build Gradle
+        env:
+          GITHUB_USERNAME: ${{ secrets.github-username }}
+          GITHUB_TOKEN: ${{ secrets.github-pat }}
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: ${{ inputs.gradle-version }}
+          arguments: build
+          
+      #Running Test
+      - name: Running  Gradle Test
+        env:
+          GITHUB_USERNAME: ${{ secrets.GIT_USERNAME}}
+          GITHUB_TOKEN: ${{ secrets.PACKAGES_TOKEN}}
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: ${{ inputs.gradle-version }}
+          arguments: test
