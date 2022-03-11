@@ -53,7 +53,7 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           gradle-version: ${{ inputs.gradle-version }}
-          arguments: build
+          arguments: build -x test
           
       #Running Test
       - name: Running  Gradle Test
