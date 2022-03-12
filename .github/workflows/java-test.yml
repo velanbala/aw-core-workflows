@@ -1,4 +1,4 @@
-name: "JavaGradleBuild"
+name: "JavaGradleTest"
 
 on:
   workflow_call:
@@ -35,7 +35,7 @@ on:
         required: true
 
 jobs:
-  build:
+  test:
     runs-on: ${{ inputs.os-version }}
     steps:
       - uses: actions/checkout@v2
@@ -79,16 +79,6 @@ jobs:
         run: |
           echo //npm.pkg.github.com/:_authToken=${{ secrets.PACKAGES_TOKEN }} >> ~/.npmrc
           npm ci
-
-      #Build Gradle
-      - name: Build Gradle
-        env:
-          GITHUB_USERNAME: ${{ secrets.github-username }}
-          GITHUB_TOKEN: ${{ secrets.github-pat }}
-        uses: gradle/gradle-build-action@v2
-        with:
-          gradle-version: ${{ inputs.gradle-version }}
-          arguments: build -x test
 
       #Running Test
       - name: Running  Gradle Test
