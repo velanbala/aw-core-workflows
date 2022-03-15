@@ -1,0 +1,128 @@
+name: "JavaGradleTest"
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        description: "Java Version"
+        type: string
+        required: true
+      gradle-version:
+        description: "Gradle Version"
+        type: string
+        required: true
+      os-version:
+        description: "OS Version"
+        type: string
+        default: ubuntu-latest
+        required: false
+      depends-on-node:
+        description: "Is Node required for build?"
+        type: boolean
+        default: false
+        required: false
+      node-version:
+        description: "Node version"
+        type: string
+        default: "10.15.3"
+        required: false
+      gcp-sdk-version:
+        description: "Google Cloud SDK Version"
+        type: string
+        default: 321.0.0
+        required: false
+      build-root-directory:
+        description: "Build Root Directory"
+        type: string
+        default: .
+        required: false
+      gcp-project-id: 
+        description: "GCP Project ID"
+        type: string
+        required: true
+      deployment-environment:
+        description: "Deployment Environment"
+        type: string
+        required: true
+    secrets:
+      github-username:
+        description: "GitHub Username"
+        required: true
+      github-pat:
+        description: "GitHub Packages Token"
+        required: true
+      gcp-sa-key:
+        description: "GCP Service Account Key"
+        required: true
+    
+jobs:
+  test:
+    runs-on: ${{ inputs.os-version }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ inputs.java-version }}
+
+      - name: Cache node modules
+        if: ${{ inputs.depends-on-node }}
+        uses: actions/cache@v2
+        with:
+          submodules: true
+      # npm cache files are stored in `~/.npm` on ubuntu-latest
+          path: ~/.npm
+          key: ${{ runner.os }}-build-cache-node-modules
+          restore-keys: |
+            ${{ runner.os }}-build-cache-node-modules
+
+      # Setup Node
+      - name: Setup Node Environment
+        if: ${{ inputs.depends-on-node }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      # Install Node dependencies
+      - name: Install Dependencies
+        if: ${{ inputs.depends-on-node }}
+        run: |
+          echo //npm.pkg.github.com/:_authToken=${{ secrets.PACKAGES_TOKEN }} >> ~/.npmrc
+          npm ci
+
+      # Build Gradle
+      - name: Build Gradle
+        env:
+          GITHUB_USERNAME: ${{ secrets.github-username }}
+          GITHUB_TOKEN: ${{ secrets.github-pat }}
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: ${{ inputs.gradle-version }}
+          arguments: build -x test #Build without test cases
+
+      # Cloud SDK configurations for the App Engine Project 
+      - name: Setting Up Google Cloud Platform SDK
+        uses: google-github-actions/setup-gcloud@master
+        with:
+          version: ${{ inputs.gcp-sdk-version }}
+          project_id: ${{ inputs.gcp-project-id }} 
+          service_account_key: ${{ secrets.gcp-sa-key }}
+          export_default_credentials: true
+
+      # Deployment
+      - name: Deployment
+        uses: eskatos/gradle-command-action@v1
+        with:
+          gradle-version: ${{ inputs.gradle-version }}
+          build-root-directory:  ${{ inputs.build-root-directory }}
+          arguments: appengineDeploy -Pmode=${{ inputs.deployment-environment }}

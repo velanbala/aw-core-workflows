@@ -16,6 +16,16 @@ on:
         type: string
         default: ubuntu-latest
         required: false
+      depends-on-node:
+        description: "Is Node required for build?"
+        type: boolean
+        default: false
+        required: false
+      node-version:
+        description: "Node version if Node required"
+        type: string
+        default: "10.15.3"
+        required: false
     secrets:
       github-username:
         description: "GitHub Username"
@@ -27,7 +37,6 @@ on:
 jobs:
   build:
     runs-on: ${{ inputs.os-version }}
-    name: Java Compile
     steps:
       - uses: actions/checkout@v2
       - name: Cache
@@ -45,6 +54,32 @@ jobs:
         with:
           java-version: ${{ inputs.java-version }}
 
+      - name: Cache node modules
+        if: ${{ inputs.depends-on-node }}
+        uses: actions/cache@v2
+        with:
+          submodules: true
+          # npm cache files are stored in `~/.npm` on ubuntu-latest
+          path: ~/.npm
+          key: ${{ runner.os }}-build-cache-node-modules
+          restore-keys: |
+            ${{ runner.os }}-build-cache-node-modules
+
+        # Setup Node
+      - name: Setup node
+        if: ${{ inputs.depends-on-node }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ inputs.node-version }}
+        run: npm install
+
+      # Install Node dependencies
+      - name: Install Dependencies
+        if: ${{ inputs.depends-on-node }}
+        run: |
+          echo //npm.pkg.github.com/:_authToken=${{ secrets.PACKAGES_TOKEN }} >> ~/.npmrc
+          npm ci
+
       #Build Gradle
       - name: Build Gradle
         env:
@@ -58,8 +93,8 @@ jobs:
       #Running Test
       - name: Running  Gradle Test
         env:
-          GITHUB_USERNAME: ${{ secrets.GIT_USERNAME}}
-          GITHUB_TOKEN: ${{ secrets.PACKAGES_TOKEN}}
+          GITHUB_USERNAME: ${{ secrets.github-username }}
+          GITHUB_TOKEN: ${{ secrets.github-pat }}
         uses: gradle/gradle-build-action@v2
         with:
           gradle-version: ${{ inputs.gradle-version }}
