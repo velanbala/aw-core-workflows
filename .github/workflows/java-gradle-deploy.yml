@@ -99,7 +99,6 @@ jobs:
         run: |
           echo //npm.pkg.github.com/:_authToken=${{ secrets.github-pat }} >> ~/.npmrc
           npm ci
-          npm install
 
       # Build Gradle
       - name: Build Gradle
