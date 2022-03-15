@@ -1,0 +1,164 @@
+name: "JavaGradleTest"
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        description: "Java Version"
+        type: string
+        required: true
+      gradle-version:
+        description: "Gradle Version"
+        type: string
+        required: true
+      os-version:
+        description: "OS Version"
+        type: string
+        default: ubuntu-latest
+        required: false
+      depends-on-node:
+        description: "Is Node required for build?"
+        type: boolean
+        default: false
+        required: false
+      node-version:
+        description: "Node version if Node required"
+        type: string
+        default: "10.15.3"
+        required: false
+      gcp-sdk-version:
+        description: "Google Cloud SDK Version"
+        type: string
+        default: 321.0.0
+        required: false
+      build-root-directory:
+        description: "Build Root Directory"
+        type: string
+        default: .
+        required: false
+      staging-project-id:
+        description: "Staging GCP Project ID"
+        type: string
+        required: true
+      live-project-id: 
+        description: "Live GCP Project ID"
+        type: string
+        required: true
+      staging-base-branch:
+        description: "Staging base branch name"
+        type: string
+        default: dev
+        required: false
+      live-base-branch:
+        description: "Live base branch name"
+        type: string
+        default: master
+        required: false
+    secrets:
+      github-username:
+        description: "GitHub Username"
+        required: true
+      github-pat:
+        description: "GitHub Packages Token"
+        required: true
+      staging-gcp-sa-key:
+        description: "Staging GCP Service Account Key"
+        required: true
+      live-gcp-sa-key:
+        description: "Live GCP Service Account Key"
+        required: true
+    
+jobs:
+  test:
+    runs-on: ${{ inputs.os-version }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ inputs.java-version }}
+
+      - name: Cache node modules
+        if: ${{ inputs.depends-on-node }}
+        uses: actions/cache@v2
+        with:
+          submodules: true
+      # npm cache files are stored in `~/.npm` on ubuntu-latest
+          path: ~/.npm
+          key: ${{ runner.os }}-build-cache-node-modules
+          restore-keys: |
+            ${{ runner.os }}-build-cache-node-modules
+
+      # Setup Node
+      - name: Setup Node Environment
+        if: ${{ inputs.depends-on-node }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      # Install Node dependencies
+      - name: Install Dependencies
+        if: ${{ inputs.depends-on-node }}
+        run: |
+          echo //npm.pkg.github.com/:_authToken=${{ secrets.PACKAGES_TOKEN }} >> ~/.npmrc
+          npm ci
+
+      #Build Gradle
+      - name: Build Gradle
+        env:
+          GITHUB_USERNAME: ${{ secrets.github-username }}
+          GITHUB_TOKEN: ${{ secrets.github-pat }}
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: ${{ inputs.gradle-version }}
+          arguments: build -x test #Build without test cases
+
+      # Cloud SDK configurations for the App Engine Project Staging
+      - name: Setting Up Google Cloud Platform SDK For Staging
+        if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == ${{ staging-base-branch }}
+        uses: google-github-actions/setup-gcloud@master
+        with:
+          version: ${{ inputs.gcp-sdk-version }}
+          project_id: ${{ inputs.staging-project-id }} 
+          service_account_key: ${{ secrets.staging-gcp-sa-key }}
+          export_default_credentials: true
+
+      #Staging Deployment
+      - name: Staging Deployment
+        id: staging-deployment
+        if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == ${{ staging-base-branch }}
+        uses: eskatos/gradle-command-action@v1
+        with:
+          gradle-version: ${{ inputs.gradle-version }}
+          build-root-directory:  ${{ inputs.build-root-directory }}
+          arguments: appengineDeploy -Pmode=staging
+
+      # Cloud SDK configurations for the App Engine Live Environment
+      - name: Setting Up Google Cloud Platform SDK For Live
+        if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && (github.event.pull_request.base.ref == ${{ live-base-branch }})
+        uses: google-github-actions/setup-gcloud@master
+        with:
+          version: ${{ inputs.gcp-sdk-version }}
+          project_id: ${{ inputs.live-project-id }} 
+          service_account_key: ${{ secrets.live-gcp-sa-key }}
+          export_default_credentials: true
+
+      #Live Deployment
+      - name: Live Deployment
+        id: live-deployment
+        if:  github.event_name == 'pull_request' && github.event.pull_request.merged == true && (github.event.pull_request.base.ref == ${{ live-base-branch }})
+        uses: eskatos/gradle-command-action@v1
+        with:
+          gradle-version: ${{ inputs.gradle-version }}
+          build-root-directory:  ${{ inputs.build-root-directory }}
+          arguments: appengineDeploy -Pmode=live
