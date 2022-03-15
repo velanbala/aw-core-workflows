@@ -56,7 +56,7 @@ on:
         required: true
     
 jobs:
-  test:
+  Release-Deployment:
     runs-on: ${{ inputs.os-version }}
     steps:
       - uses: actions/checkout@v2
@@ -97,8 +97,9 @@ jobs:
       - name: Install Dependencies
         if: ${{ inputs.depends-on-node }}
         run: |
-          echo //npm.pkg.github.com/:_authToken=${{ secrets.PACKAGES_TOKEN }} >> ~/.npmrc
+          echo //npm.pkg.github.com/:_authToken=${{ secrets.github-pat }} >> ~/.npmrc
           npm ci
+          npm install
 
       # Build Gradle
       - name: Build Gradle
@@ -120,7 +121,7 @@ jobs:
           export_default_credentials: true
 
       # Deployment
-      - name: Deployment
+      - name: GCP Deployment
         uses: eskatos/gradle-command-action@v1
         with:
           gradle-version: ${{ inputs.gradle-version }}

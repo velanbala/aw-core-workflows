@@ -76,7 +76,7 @@ jobs:
       - name: Install Dependencies
         if: ${{ inputs.depends-on-node }}
         run: |
-          echo //npm.pkg.github.com/:_authToken=${{ secrets.PACKAGES_TOKEN }} >> ~/.npmrc
+          echo //npm.pkg.github.com/:_authToken=${{ secrets.github-pat }} >> ~/.npmrc
           npm ci
 
       #Build Gradle
