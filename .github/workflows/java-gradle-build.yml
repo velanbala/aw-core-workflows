@@ -71,7 +71,6 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: ${{ inputs.node-version }}
-        run: npm install
 
       # Install Node dependencies
       - name: Install Dependencies
