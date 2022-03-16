@@ -1,0 +1,32 @@
+name: "Build Gradle"
+description: "Gradle Build"
+inputs:
+  gradle-version:
+    description: "Gradle Version"
+    required: true
+  github-username:
+    description: "GitHub Username"
+    required: true
+  github-pat:
+    description: "GitHub Packages Token"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Build Gradle
+      env:
+        GITHUB_USERNAME: ${{ secrets.github-username }}
+        GITHUB_TOKEN: ${{ secrets.github-pat }}
+      uses: gradle/gradle-build-action@v2
+      with:
+        gradle-version: ${{ inputs.gradle-version }}
+        arguments: build -x test
+
+    - name: Gradle Test
+      env:
+        GITHUB_USERNAME: ${{ secrets.github-username }}
+        GITHUB_TOKEN: ${{ secrets.github-pat }}
+      uses: gradle/gradle-build-action@v2
+      with:
+        gradle-version: ${{ inputs.gradle-version }}
+        arguments: test

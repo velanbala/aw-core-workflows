@@ -1,0 +1,48 @@
+name: "Deploy GCP"
+description: "Deploy to Google Cloud Platform"
+inputs:
+      build-root-directory:
+        description: "Build Root Directory"
+        default: .
+        required: false
+      gradle-version:
+        description: "Gradle Version"
+        required: true
+      gcp-project-id: 
+        description: "GCP Project ID"
+        required: true
+      deployment-environment:
+        description: "Deployment Environment"
+        required: true
+      gcp-sdk-version:
+        description: "Google Cloud SDK Version"
+        default: 321.0.0
+        required: false
+      github-username:
+        description: "GitHub Username"
+        required: true
+      github-pat:
+        description: "GitHub Packages Token"
+        required: true
+      gcp-sa-key:
+        description: "GCP Service Account Key"
+        required: true
+runs:
+  using: "composite"
+  steps:
+      # Cloud SDK configurations for the App Engine Project 
+      - name: Setting Up Google Cloud Platform SDK
+        uses: google-github-actions/setup-gcloud@master
+        with:
+          version: ${{ inputs.gcp-sdk-version }}
+          project_id: ${{ inputs.gcp-project-id }} 
+          service_account_key: ${{ secrets.gcp-sa-key }}
+          export_default_credentials: true
+
+      # Deployment
+      - name: GCP Deployment
+        uses: eskatos/gradle-command-action@v1
+        with:
+          gradle-version: ${{ inputs.gradle-version }}
+          build-root-directory:  ${{ inputs.build-root-directory }}
+          arguments: appengineDeploy -Pmode=${{ inputs.deployment-environment }}
