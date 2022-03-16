@@ -13,11 +13,11 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Build Gradle
+    - name: Gradle Test
       env:
         GITHUB_USERNAME: ${{ inputs.github-username }}
         GITHUB_TOKEN: ${{ inputs.github-pat }}
       uses: gradle/gradle-build-action@v2
       with:
         gradle-version: ${{ inputs.gradle-version }}
-        arguments: build -x test
+        arguments: test
