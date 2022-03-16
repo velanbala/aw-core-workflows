@@ -15,8 +15,8 @@ runs:
   steps:
     - name: Build Gradle
       env:
-        GITHUB_USERNAME: ${{ secrets.github-username }}
-        GITHUB_TOKEN: ${{ secrets.github-pat }}
+        GITHUB_USERNAME: ${{ inputs.github-username }}
+        GITHUB_TOKEN: ${{ inputs.github-pat }}
       uses: gradle/gradle-build-action@v2
       with:
         gradle-version: ${{ inputs.gradle-version }}
@@ -24,8 +24,8 @@ runs:
 
     - name: Gradle Test
       env:
-        GITHUB_USERNAME: ${{ secrets.github-username }}
-        GITHUB_TOKEN: ${{ secrets.github-pat }}
+        GITHUB_USERNAME: ${{ inputs.github-username }}
+        GITHUB_TOKEN: ${{ inputs.github-pat }}
       uses: gradle/gradle-build-action@v2
       with:
         gradle-version: ${{ inputs.gradle-version }}

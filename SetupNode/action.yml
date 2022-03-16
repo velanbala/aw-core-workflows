@@ -5,6 +5,9 @@ inputs:
     description: "Node version if Node required"
     default: "10.15.3"
     required: false
+  github-pat:
+    description: "GitHub Packages Token"
+    required: true
 runs:
   using: "composite"
   steps:
@@ -28,6 +31,6 @@ runs:
     # Install Node dependencies
     - name: Install Dependencies
       run: |
-        echo //npm.pkg.github.com/:_authToken=${{ secrets.github-pat }} >> ~/.npmrc
+        echo //npm.pkg.github.com/:_authToken=${{ inputs.github-pat }} >> ~/.npmrc
         npm ci
       shell: bash
